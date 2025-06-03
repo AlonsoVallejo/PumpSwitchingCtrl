@@ -3,6 +3,7 @@
 
 #include "LCD_Display.h"
 #include "RealTimeClock.h"
+#include "utilities.h"
 #include <stdint.h>
 
 /* Times in that each pump will be in active state */

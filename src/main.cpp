@@ -3,30 +3,37 @@
 #include "Actuators.h"
 #include "UserInterface.h"
 #include "RealTimeClock.h"
+#include "AT24C32_nvm.h"
 #include "utilities.h"
-#include <EEPROM.h>
 #include <Wire.h>
 
-#define AT24C32_I2C_ADDR 0x57
-#define AT24C32_START_ADDR 0x0000
+#define POLL_ALL_SENSORS_TIMEOUT (50)
+#define CONTROL_PUMPS_TIMEOUT    (200)
+#define DISPLAY_UPDATE_TIMEOUT   (400)
 
-#define DI_PB_UP 2
-#define DI_PB_DOWN 3
-#define DI_PB_LEFT 4
-#define DI_PB_RIGHT 5
-#define DI_PB_OK 6
-#define DI_PB_ESC 7
-#define DI_PB_MODE 8
-#define DI_PB_PUMP_SEL 9
-#define DI_WELL_SENSOR 10
-#define DI_CISTERN_SENSOR 11
+/* Navigation user push buttons */
+#define DI_PB_UP    (2)
+#define DI_PB_DOWN  (3)
+#define DI_PB_LEFT  (4)
+#define DI_PB_RIGHT (5)
+#define DI_PB_OK    (6)
+#define DI_PB_ESC   (7)
 
-#define DO_LED_AUTO 14
-#define DO_LED_MANUAL 15
-#define DO_PUMP_1 16
-#define DO_PUMP_2 17
+/* Control mode selection push buttons */
+#define DI_PB_MODE     (8)
+#define DI_PB_PUMP_SEL (9)
 
-#define SENSOR_FULL_LEVEL  (false)
+/* Sensors and actuators */
+#define DI_WELL_SENSOR    (10)
+#define DI_CISTERN_SENSOR (11)
+
+#define DO_LED_AUTO   (14)
+#define DO_LED_MANUAL (15)
+
+#define DO_PUMP_1 (16)
+#define DO_PUMP_2 (17)
+
+#define SENSOR_FULL_LEVEL  (false) 
 #define SENSOR_EMPTY_LEVEL (true)
 
 DigitalSensor pbUp(DI_PB_UP);
@@ -53,54 +60,6 @@ PumpCycleTime PumpCyclesTimes[] = {
     {0, 0, 0}, /* Pump 1 cycle time (default) */
     {0, 0, 0}  /* Pump 2 cycle time (default) */
 };
-
-/**
- * @brief Writes bytes to the I2C EEPROM (AT24C32).
- * This function writes a sequence of bytes to the I2C EEPROM starting from the specified address.
- * @param eeaddress The starting address in the EEPROM to write the data.
- * @param data A pointer to the data buffer to be written to the EEPROM.
- * @param length The number of bytes to write from the data buffer.
- */
-void I2C_EEPROM_WriteBytes(uint16_t eeaddress, const uint8_t* data, uint16_t length) {
-    while (length > 0) {
-        Wire.beginTransmission(AT24C32_I2C_ADDR);
-        Wire.write((int)(eeaddress >> 8));   // MSB
-        Wire.write((int)(eeaddress & 0xFF)); // LSB
-        uint8_t bytesThisPage = min(length, 32 - (eeaddress % 32)); // 32-byte page boundary
-        for (uint8_t i = 0; i < bytesThisPage; i++) {
-            Wire.write(data[i]);
-        }
-        Wire.endTransmission();
-        delay(5); // Write cycle time
-        eeaddress += bytesThisPage;
-        data += bytesThisPage;
-        length -= bytesThisPage;
-    }
-}
-
-/**
- * @brief Reads bytes from the I2C EEPROM (AT24C32).
- * This function reads a sequence of bytes from the I2C EEPROM starting from the specified address.
- * @param eeaddress The starting address in the EEPROM to read the data.
- * @param data A pointer to the buffer where the read data will be stored.
- * @param length The number of bytes to read and store in the data buffer.
- */
-void I2C_EEPROM_ReadBytes(uint16_t eeaddress, uint8_t* data, uint16_t length) {
-    while (length > 0) {
-        Wire.beginTransmission(AT24C32_I2C_ADDR);
-        Wire.write((int)(eeaddress >> 8));   // MSB
-        Wire.write((int)(eeaddress & 0xFF)); // LSB
-        Wire.endTransmission();
-        uint8_t bytesThisRead = min(length, 32);
-        Wire.requestFrom(AT24C32_I2C_ADDR, bytesThisRead);
-        for (uint8_t i = 0; i < bytesThisRead && Wire.available(); i++) {
-            data[i] = Wire.read();
-        }
-        eeaddress += bytesThisRead;
-        data += bytesThisRead;
-        length -= bytesThisRead;
-    }
-}
 
 /**
  * @brief Saves the pump cycle times to EEPROM.
@@ -506,12 +465,12 @@ void loop() {
     static CtrlModeSel_t currentCtrlMode = CTRL_AUTO_BY_SENSORS;
     uint64_t now = millis();
 
-    if (now - lastSensorsMillis >= 50) {
+    if (now - lastSensorsMillis >= POLL_ALL_SENSORS_TIMEOUT) {
         PollAllSensors();
         lastSensorsMillis = now;
     }
 
-    if (now - lastActuatorsMillis >= 200) {
+    if (now - lastActuatorsMillis >= CONTROL_PUMPS_TIMEOUT) {
         currentCtrlMode = ControlModeSelection(currentCtrlMode);
         
         if(currentCtrlMode == CTRL_MODE_MANUAL) {
@@ -527,7 +486,7 @@ void loop() {
         lastActuatorsMillis = now;
     }
 
-    if (now - lastDisplayMillis >= 400) {
+    if (now - lastDisplayMillis >= DISPLAY_UPDATE_TIMEOUT) {
         ShowDisplayMenus(currentCtrlMode);
         lastDisplayMillis = now;
     }

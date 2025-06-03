@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pump Alternator Controller is an embedded project running on MCU ATMEGA328P designed to manage two pumps for filling a cistern from a well. The system alternates between pumps each time the cistern is emptied and refilled, ensuring balanced usage and protection against dry running. The project features a user interface with a 16x2 I2C LCD and push buttons for mode selection, pump selection, and configuration.
+Pump Alternator Controller is an embedded project running on MCU ATMEGA328P (Arduino Nano) designed to manage two pumps for filling a cistern from a well. The system alternates between pumps each time the cistern is emptied and refilled, ensuring balanced usage and protection against dry running. The project features a user interface with a 16x2 I2C LCD and push buttons for mode selection, pump selection, and configuration. All configuration data (pump cycle times) is stored in an external AT24C32 I2C EEPROM for persistence.
 
 ## Features
 
@@ -16,11 +16,13 @@ Pump Alternator Controller is an embedded project running on MCU ATMEGA328P desi
 - **RTC Configuration:** User can set the real-time clock (date and time) via the menu.
 - **Pump Cycle Configuration:** User can set the activation time for each pump via the menu.
 - **Debounced Inputs:** All digital inputs (buttons and sensors) are debounced in software.
+- **Non-volatile Storage:** Pump cycle times are saved and loaded from an AT24C32 I2C EEPROM (address 0x57). If no valid data is found, defaults are set to 0:0:0.
 
 ## Hardware Requirements
 
 - Arduino Nano (ATMEGA328P)
 - 16x2 I2C LCD display (default address 0x27)
+- AT24C32 I2C EEPROM module (address 0x57)
 - Two pumps (controlled via digital outputs)
 - Well and cistern level sensors (digital inputs)
 - Push buttons for user interface (mode, pump select, up, down, left, right, OK, ESC)
@@ -36,10 +38,11 @@ Pump Alternator Controller is an embedded project running on MCU ATMEGA328P desi
 - **Automatic by Timer:** When the cistern becomes empty, the selected pump runs for its configured cycle time, then alternates to the other pump for its configured time, repeating until the cistern is full. If the well runs dry, the pump pauses and resumes when water is available. Alternation only starts if both pump times are set.
 - **Manual Mode:** The user can select which pump(s) to activate using the interface.
 - **Menu System:** The LCD displays the current mode and time. The user can navigate to settings to change the control mode, set the system time, or configure pump cycle times.
+- **EEPROM Handling:** On startup, pump cycle times are loaded from the AT24C32 EEPROM. If the EEPROM is uninitialized (all bytes are 0xFF), default values (0:0:0) are set and saved.
 
 ## Getting Started
 
-1. **Wiring:** Connect all sensors, actuators, RTC, and the LCD as per the pin definitions and schematic.
+1. **Wiring:** Connect all sensors, actuators, RTC, LCD, and the AT24C32 EEPROM as per the pin definitions and schematic.
 2. **Build & Upload:** Use PlatformIO to build and upload the firmware to your Arduino Nano.
 3. **Operation:** Use the push buttons to navigate the menu and select the desired mode. The LCD will provide feedback and status.
 

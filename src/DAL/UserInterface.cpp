@@ -264,6 +264,7 @@ ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool
         /** Save new date/time to RTC */
         DateTime newdt(2000 + year, month, day, hour, minute, second);
         rtc_datetime.setDateTime(newdt);
+        LogSerialn("RTC set to: " + rtc_datetime.getFormattedDateTime(), true);
         initialized = false;
         retval = SCREEN_MAIN_CFGS;
     } else if (pbEscState) {
@@ -338,6 +339,7 @@ ScreenMode_t DisplayCfgPump1Cycle(
         PumpCyclesTimes[0].minute = minute;
         PumpCyclesTimes[0].second = second;
         initialized = false;
+        LogSerialn("Pump 1 cycle set to: " + String(cycleStr), true);
         retval = SCREEN_MAIN_CFGS;
     } else if (pbEscState) {
         initialized = false;
@@ -410,6 +412,7 @@ ScreenMode_t DisplayCfgPump2Cycle(
         PumpCyclesTimes[1].minute = minute;
         PumpCyclesTimes[1].second = second;
         initialized = false;
+        LogSerialn("Pump 2 cycle set to: " + String(cycleStr), true);
         retval = SCREEN_MAIN_CFGS;
     } else if (pbEscState) {
         initialized = false;
