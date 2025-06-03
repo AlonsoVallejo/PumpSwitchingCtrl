@@ -1,6 +1,6 @@
 #include "Sensors.h"
 
-#define DEBOUNCE_DELAY_MS 200
+#define DEBOUNCE_DELAY_MS 100
 
 /**
  * @brief Polls the Sensor state and updates the SensorState variable.

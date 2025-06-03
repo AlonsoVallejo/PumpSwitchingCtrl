@@ -4,8 +4,9 @@
 #include "LCD_Display.h"
 
 enum CtrlModeSel_t {
-    CTRL_MODE_AUTO,
-    CTRL_MODE_MANUAL
+    CTRL_AUTO_BY_SENSORS,/* Setting selected using mode's push button */
+    CTRL_MODE_MANUAL,    /* Setting selected using mode's push button */
+    CTRL_AUTO_BY_TIMER   /* Setting selected using display interfaces */
 };
 
 enum ManualPumpSel_t {
@@ -15,18 +16,19 @@ enum ManualPumpSel_t {
     SELECT_PUMP_BOTH
 };
 
-enum CtrlAutoMode_t {
-    CTRL_AUTO_BY_SENSORS,
-    CTRL_AUTO_BY_TIMER
-};
-
 enum ScreenMode_t {
-    SCREEN_MODE_MAIN,            /* Screen to display the hour and current CtrlAutoMode_t or Manual CTRL_MODE_MANUAL */
-    SCREEN_MODE_OPTION_SETTINGS, /* Screen to display select the settings CtrlAutoMode_t and hour */
-    SCREEN_MODE_SET_DATE_TIME,   /* Screen to allow the user configure the current hour */
-    SCREEN_MODE_SET_PUMP1_CYCLE, /* Screen to set the activation cycle for PUMP1 if CTRL_AUTO_BY_TIMER */
-    SCREEN_MODE_SET_PUMP2_CYCLE, /* Screen to set the activation cycle for PUMP2 if CTRL_AUTO_BY_TIMER */
-    TOTAL_SCREEN_MODES
+    SCREEN_MODE_MAIN,            
+    SCREEN_MODE_OPTION_SETTINGS, 
+    SCREEN_MODE_SET_CTRL_MODE,
+    SCREEN_MODE_SET_DATE_TIME,   
+    SCREEN_MODE_SET_PUMP1_CYCLE,
+    SCREEN_MODE_SET_PUMP2_CYCLE,
 };
 
+ScreenMode_t DisplayMainScreen(bool pbOkState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay, String Hour);
+ScreenMode_t DisplayOptionSettingsScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplaySetCtrlModeScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay);
+ScreenMode_t DisplaySetDateTimeScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplaySetPump1CycleScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplaySetPump2CycleScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
 #endif
