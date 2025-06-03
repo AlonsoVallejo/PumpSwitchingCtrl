@@ -16,13 +16,13 @@ ScreenMode_t DisplayMain(bool pbOkState, CtrlModeSel_t &mode, LCD_Display &lcdDi
     String ctrlModeStr;
     switch(mode) {
         case CTRL_MODE_MANUAL:
-            ctrlModeStr = "Manual";
+            ctrlModeStr = "Manual ";
             break;
         case CTRL_AUTO_BY_SENSORS:
             ctrlModeStr = "Sensors";
             break;
         case CTRL_AUTO_BY_TIMER:
-            ctrlModeStr = "Timer";
+            ctrlModeStr = "Timers ";
             break;
         default:
             ctrlModeStr = "UNKNOWN";
