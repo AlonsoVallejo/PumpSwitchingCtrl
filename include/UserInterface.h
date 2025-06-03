@@ -2,6 +2,7 @@
 #define USER_INTERFACE_H
 
 #include "LCD_Display.h"
+#include "RealTimeClock.h"
 
 enum CtrlModeSel_t {
     CTRL_AUTO_BY_SENSORS,/* Setting selected using mode's push button */
@@ -9,6 +10,7 @@ enum CtrlModeSel_t {
     CTRL_AUTO_BY_TIMER   /* Setting selected using display interfaces */
 };
 
+/* Manual activation of each pump using pump's push button */
 enum ManualPumpSel_t {
     SELECT_PUMP_NONE,
     SELECT_PUMP_1,
@@ -17,18 +19,18 @@ enum ManualPumpSel_t {
 };
 
 enum ScreenMode_t {
-    SCREEN_MODE_MAIN,            
-    SCREEN_MODE_OPTION_SETTINGS, 
-    SCREEN_MODE_SET_CTRL_MODE,
-    SCREEN_MODE_SET_DATE_TIME,   
-    SCREEN_MODE_SET_PUMP1_CYCLE,
-    SCREEN_MODE_SET_PUMP2_CYCLE,
+    SCREEN_MAIN,            
+    SCREEN_MAIN_CFGS,
+    SCREEN_CFG_CTRL_TYPE,
+    SCREEN_CFG_RTC,   
+    SCREEN_CFG_PUMP1_CYCLE,
+    SCREEN_CFG_PUMP2_CYCLE,
 };
 
-ScreenMode_t DisplayMainScreen(bool pbOkState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay, String Hour);
-ScreenMode_t DisplayOptionSettingsScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, LCD_Display &lcdDisplay);
-ScreenMode_t DisplaySetCtrlModeScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay);
-ScreenMode_t DisplaySetDateTimeScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
-ScreenMode_t DisplaySetPump1CycleScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
-ScreenMode_t DisplaySetPump2CycleScreen(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplayMain(bool pbOkState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay, String Hour);
+ScreenMode_t DisplayMainCfgs(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplayCfgControlTypes(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay);
+ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay, RealTimeClock &rtc);
+ScreenMode_t DisplayCfgPump1Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplayCfgPump2Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
 #endif

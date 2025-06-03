@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pump Alternator Controller is an embedded project for Arduino Nano designed to manage two pumps for filling a cistern from a well. The system alternates between pumps each time the cistern is emptied and refilled, ensuring balanced usage and protection against dry running. The project features a user interface with an I2C LCD and push buttons for mode selection and settings.
+Pump Alternator Controller is an embedded project running on MCU ATMEGA328P designed to manage two pumps for filling a cistern from a well. The system alternates between pumps each time the cistern is emptied and refilled, ensuring balanced usage and protection against dry running. The project features a user interface with an I2C LCD and push buttons for mode selection and settings.
 
 ## Features
 
@@ -12,7 +12,6 @@ Pump Alternator Controller is an embedded project for Arduino Nano designed to m
 - **User Interface:** 16x2 I2C LCD displays current mode, time, and settings menu.
 - **Menu Navigation:** Push buttons for mode selection, pump selection, navigation, and confirmation.
 - **Safe Operation:** Pumps are paused if the well is empty and resume when water is available.
-- **Debounced Inputs:** All digital inputs are debounced for reliable operation.
 
 ## Hardware Requirements
 

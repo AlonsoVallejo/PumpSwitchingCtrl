@@ -1,6 +1,5 @@
 #include "LCD_Display.h"
 
-
 /**
  * @brief Initializes the LCD display.
  * This function initializes the LCD display by calling the begin() method of the LiquidCrystal_I2C object,

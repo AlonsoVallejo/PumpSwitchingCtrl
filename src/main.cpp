@@ -2,7 +2,7 @@
 #include "Sensors.h"
 #include "Actuators.h"
 #include "UserInterface.h"
-#include "DateTime.h"
+#include "RealTimeClock.h"
 #include "utilities.h"
 
 #define DI_PB_UP 2
@@ -42,6 +42,11 @@ DigitalActuator pump2(DO_PUMP_2);
 
 LCD_Display lcdDisplay(LCD_DISPLAY_I2C_ADDR, LCD_DISPLAY_COLS, LCD_DISPLAY_ROWS);
 
+RealTimeClock rtc;
+/**
+ * @brief Polls all sensors to update their states.
+ * This function reads the state of each sensor and updates their internal state.
+ */
 void PollAllSensors(void) 
 {
     pbUp.PollSensorState();
@@ -56,6 +61,13 @@ void PollAllSensors(void)
     cisternSensor.PollSensorState();
 }
 
+/**
+ * @brief Controls the selection of control modes based on push button input.
+ * This function manages the control mode selection logic, including toggling between
+ * manual and automatic modes based on sensor states.
+ * @param Ctrlmode The current control mode selected by the user.
+ * @return The updated control mode after processing the input.
+ */
 CtrlModeSel_t ControlModeSelection(CtrlModeSel_t Ctrlmode) {
     static bool prevPbModeState = false;
     static CtrlModeSel_t prevAutoMode = CTRL_AUTO_BY_SENSORS;
@@ -99,6 +111,12 @@ CtrlModeSel_t ControlModeSelection(CtrlModeSel_t Ctrlmode) {
     return retCtrlMode;
 }
 
+/**
+ * @brief Controls the pumps based on manual selection.
+ * This function allows the user to manually select which pump to activate
+ * using a push button. It also checks the well sensor state to ensure
+ * pumps are only activated when the well is not empty.
+ */
 void CntrlPumpsByManual(void)
 {
     static bool prevPbPumpSelState = false;
@@ -137,6 +155,11 @@ void CntrlPumpsByManual(void)
     }
 }
 
+/**
+ * @brief Controls the pumps based on sensor states.
+ * This function manages the operation of pumps based on the states of well and cistern sensors.
+ * It alternates between two pumps when filling the cistern and pauses operation if the well is empty.
+ */
 void CntrlPumpsBySensors(void)
 {
     /** Static variables to keep track of pump alternation and state */
@@ -201,8 +224,14 @@ void CntrlPumpsBySensors(void)
     }
 }
 
-void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode, LCD_Display &lcdDisplay) {
-    static ScreenMode_t currentScreenMode = SCREEN_MODE_MAIN;
+/**
+ * @brief Displays the current screen based on the selected mode.
+ * This function manages the display of different screens based on user input and the current control mode.
+ * It handles the main screen, option settings, control mode selection, date/time settings, and pump cycle settings.
+ * @param currCtrlMode The current control mode selected by the user.
+ */
+void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
+    static ScreenMode_t currentScreenMode = SCREEN_MAIN;
     bool pbUpState = pbUp.isSensorActive();
     bool pbDownState = pbDown.isSensorActive();
     bool pbLeftState = pbLeft.isSensorActive();
@@ -213,27 +242,27 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode, LCD_Display &lcdDisplay) {
     lcdDisplay.clearScreen();
 
     switch(currentScreenMode) {
-        case SCREEN_MODE_MAIN:
-            currentScreenMode = DisplayMainScreen(pbOkState, currCtrlMode, lcdDisplay, "12:34:56");
+        case SCREEN_MAIN:
+            currentScreenMode = DisplayMain(pbOkState, currCtrlMode, lcdDisplay, rtc.getFormattedDateTime());
             break;
-        case SCREEN_MODE_OPTION_SETTINGS:
-            currentScreenMode = DisplayOptionSettingsScreen(pbOkState, pbEscState, pbUpState, pbDownState, lcdDisplay);
+        case SCREEN_MAIN_CFGS:
+            currentScreenMode = DisplayMainCfgs(pbOkState, pbEscState, pbUpState, pbDownState, lcdDisplay);
             break;
-        case SCREEN_MODE_SET_CTRL_MODE:
-            currentScreenMode = DisplaySetCtrlModeScreen(pbOkState, pbEscState, pbUpState, pbDownState, currCtrlMode, lcdDisplay);
+        case SCREEN_CFG_CTRL_TYPE:
+            currentScreenMode = DisplayCfgControlTypes(pbOkState, pbEscState, pbUpState, pbDownState, currCtrlMode, lcdDisplay);
             break;
-        case SCREEN_MODE_SET_DATE_TIME:
-            currentScreenMode = DisplaySetDateTimeScreen(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
+        case SCREEN_CFG_RTC:
+            currentScreenMode = DisplayCfgRtc(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay, rtc);
             break;
-        case SCREEN_MODE_SET_PUMP1_CYCLE:
-            currentScreenMode = DisplaySetPump1CycleScreen(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
+        case SCREEN_CFG_PUMP1_CYCLE:
+            currentScreenMode = DisplayCfgPump1Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
             break;
-        case SCREEN_MODE_SET_PUMP2_CYCLE:
-            currentScreenMode = DisplaySetPump2CycleScreen(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
+        case SCREEN_CFG_PUMP2_CYCLE:
+            currentScreenMode = DisplayCfgPump2Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
             break;
 
         default:
-            currentScreenMode = SCREEN_MODE_MAIN;
+            currentScreenMode = SCREEN_MAIN;
             break;
     }
 }
@@ -242,6 +271,7 @@ void setup() {
     Serial.begin(9600);
     LogSerialn("System starting...", true);
     lcdDisplay.init();
+    rtc.begin();
 }
 
 void loop() {
@@ -258,18 +288,22 @@ void loop() {
 
     if (now - lastActuatorsMillis >= 200) {
         currentCtrlMode = ControlModeSelection(currentCtrlMode);
+        
         if(currentCtrlMode == CTRL_MODE_MANUAL) {
             CntrlPumpsByManual();
         } else if(currentCtrlMode == CTRL_AUTO_BY_SENSORS) {
             CntrlPumpsBySensors();
+        } else if(currentCtrlMode == CTRL_AUTO_BY_TIMER) {
+
         } else {
 
         }
+
         lastActuatorsMillis = now;
     }
 
     if (now - lastDisplayMillis >= 400) {
-        ShowDisplayMenus(currentCtrlMode, lcdDisplay);
+        ShowDisplayMenus(currentCtrlMode);
         lastDisplayMillis = now;
     }
 }
