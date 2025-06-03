@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <RTClib.h>
+#include <Wire.h>
 
 class RealTimeClock {
 private:

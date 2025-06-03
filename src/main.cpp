@@ -4,6 +4,11 @@
 #include "UserInterface.h"
 #include "RealTimeClock.h"
 #include "utilities.h"
+#include <EEPROM.h>
+#include <Wire.h>
+
+#define AT24C32_I2C_ADDR 0x57
+#define AT24C32_START_ADDR 0x0000
 
 #define DI_PB_UP 2
 #define DI_PB_DOWN 3
@@ -24,12 +29,6 @@
 #define SENSOR_FULL_LEVEL  (false)
 #define SENSOR_EMPTY_LEVEL (true)
 
-/* Times in that each pump will be in active state */
-DateTime PumpCyclesTimes[] = {
-    DateTime(0, 0, 0, 0, 0, 0), /* Pump 1 cycle time (default) */
-    DateTime(0, 0, 0, 0, 0, 0)  /* Pump 2 cycle time (default) */
-};
-
 DigitalSensor pbUp(DI_PB_UP);
 DigitalSensor pbDown(DI_PB_DOWN);
 DigitalSensor pbLeft(DI_PB_LEFT);
@@ -49,6 +48,101 @@ DigitalActuator pump2(DO_PUMP_2);
 LCD_Display lcdDisplay(LCD_DISPLAY_I2C_ADDR, LCD_DISPLAY_COLS, LCD_DISPLAY_ROWS);
 
 RealTimeClock rtc_datetime;
+
+PumpCycleTime PumpCyclesTimes[] = {
+    {0, 0, 0}, /* Pump 1 cycle time (default) */
+    {0, 0, 0}  /* Pump 2 cycle time (default) */
+};
+
+/**
+ * @brief Writes bytes to the I2C EEPROM (AT24C32).
+ * This function writes a sequence of bytes to the I2C EEPROM starting from the specified address.
+ * @param eeaddress The starting address in the EEPROM to write the data.
+ * @param data A pointer to the data buffer to be written to the EEPROM.
+ * @param length The number of bytes to write from the data buffer.
+ */
+void I2C_EEPROM_WriteBytes(uint16_t eeaddress, const uint8_t* data, uint16_t length) {
+    while (length > 0) {
+        Wire.beginTransmission(AT24C32_I2C_ADDR);
+        Wire.write((int)(eeaddress >> 8));   // MSB
+        Wire.write((int)(eeaddress & 0xFF)); // LSB
+        uint8_t bytesThisPage = min(length, 32 - (eeaddress % 32)); // 32-byte page boundary
+        for (uint8_t i = 0; i < bytesThisPage; i++) {
+            Wire.write(data[i]);
+        }
+        Wire.endTransmission();
+        delay(5); // Write cycle time
+        eeaddress += bytesThisPage;
+        data += bytesThisPage;
+        length -= bytesThisPage;
+    }
+}
+
+/**
+ * @brief Reads bytes from the I2C EEPROM (AT24C32).
+ * This function reads a sequence of bytes from the I2C EEPROM starting from the specified address.
+ * @param eeaddress The starting address in the EEPROM to read the data.
+ * @param data A pointer to the buffer where the read data will be stored.
+ * @param length The number of bytes to read and store in the data buffer.
+ */
+void I2C_EEPROM_ReadBytes(uint16_t eeaddress, uint8_t* data, uint16_t length) {
+    while (length > 0) {
+        Wire.beginTransmission(AT24C32_I2C_ADDR);
+        Wire.write((int)(eeaddress >> 8));   // MSB
+        Wire.write((int)(eeaddress & 0xFF)); // LSB
+        Wire.endTransmission();
+        uint8_t bytesThisRead = min(length, 32);
+        Wire.requestFrom(AT24C32_I2C_ADDR, bytesThisRead);
+        for (uint8_t i = 0; i < bytesThisRead && Wire.available(); i++) {
+            data[i] = Wire.read();
+        }
+        eeaddress += bytesThisRead;
+        data += bytesThisRead;
+        length -= bytesThisRead;
+    }
+}
+
+/**
+ * @brief Saves the pump cycle times to EEPROM.
+ * This function stores the configured pump cycle times in EEPROM for persistence across resets.
+ * @param cycles An array of PumpCycleTime objects representing the pump cycle times.
+ */
+void SavePumpCyclesToEEPROM(const PumpCycleTime cycles[2]) {
+    I2C_EEPROM_WriteBytes(AT24C32_START_ADDR, (const uint8_t*)cycles, sizeof(PumpCycleTime) * 2);
+    LogSerialn("Pump cycles saved to AT24C32", true);
+    LogSerialn("Pump 1 Cycle: " + String(cycles[0].hour) + ":" + String(cycles[0].minute) + ":" + String(cycles[0].second), true);
+    LogSerialn("Pump 2 Cycle: " + String(cycles[1].hour) + ":" + String(cycles[1].minute) + ":" + String(cycles[1].second), true);
+}
+
+/**
+ * @brief Loads the pump cycle times from EEPROM.
+ * This function retrieves the stored pump cycle times from EEPROM.
+ * @param cycles An array of PumpCycleTime objects to store the loaded pump cycle times.
+ */
+void LoadPumpCyclesFromEEPROM(PumpCycleTime cycles[2]) {
+    I2C_EEPROM_ReadBytes(AT24C32_START_ADDR, (uint8_t*)cycles, sizeof(PumpCycleTime) * 2);
+
+    // Check for uninitialized EEPROM (all bytes 0xFF)
+    bool invalid = true;
+    for (int i = 0; i < 2; ++i) {
+        if (cycles[i].hour != 0xFF || cycles[i].minute != 0xFF || cycles[i].second != 0xFF) {
+            invalid = false;
+            break;
+        }
+    }
+    if (invalid) {
+        // Set defaults
+        cycles[0] = {0, 0, 0};
+        cycles[1] = {0, 0, 0};
+        SavePumpCyclesToEEPROM(cycles);
+        LogSerialn("EEPROM uninitialized, set default pump cycles", true);
+    }
+
+    LogSerialn("Pump cycles loaded from AT24C32", true);
+    LogSerialn("Pump 1 Cycle: " + String(cycles[0].hour) + ":" + String(cycles[0].minute) + ":" + String(cycles[0].second), true);
+    LogSerialn("Pump 2 Cycle: " + String(cycles[1].hour) + ":" + String(cycles[1].minute) + ":" + String(cycles[1].second), true);
+}
+
 /**
  * @brief Polls all sensors to update their states.
  * This function reads the state of each sensor and updates their internal state.
@@ -252,8 +346,17 @@ void CntrlPumpsByTimer(void)
     DateTime now = rtc_datetime.GetCurrentDateTime();
 
     /** Check if both pump cycle times are set (not default) */
-    bool pump1CycleValid = (PumpCyclesTimes[0].hour() != 0) || (PumpCyclesTimes[0].minute() != 0) || (PumpCyclesTimes[0].second() != 0);
-    bool pump2CycleValid = (PumpCyclesTimes[1].hour() != 0) || (PumpCyclesTimes[1].minute() != 0) || (PumpCyclesTimes[1].second() != 0);
+    bool pump1CycleValid = (PumpCyclesTimes[0].hour != 0) || (PumpCyclesTimes[0].minute != 0) || (PumpCyclesTimes[0].second != 0);
+    bool pump2CycleValid = (PumpCyclesTimes[1].hour != 0) || (PumpCyclesTimes[1].minute != 0) || (PumpCyclesTimes[1].second != 0);
+
+    static PumpCycleTime prevPumpCyclesTimes[2] = { {0,0,0}, {0,0,0} };
+    if (pump1CycleValid && pump2CycleValid) {
+        /* Check if either pump's cycle time has changed */ 
+        if (memcmp(&PumpCyclesTimes, &prevPumpCyclesTimes, sizeof(PumpCyclesTimes)) != 0) {
+            SavePumpCyclesToEEPROM(PumpCyclesTimes);
+            memcpy(&prevPumpCyclesTimes, &PumpCyclesTimes, sizeof(PumpCyclesTimes));
+        }
+    }
 
     /** If either pump cycle time is default, do not start alternation, keep both pumps off and reset state */
     if (!pump1CycleValid || !pump2CycleValid) {
@@ -325,9 +428,9 @@ void CntrlPumpsByTimer(void)
     uint32_t elapsedSeconds = elapsed.totalseconds();
 
     /** Get configured cycle time for the current pump in seconds */
-    uint32_t cycleSeconds = PumpCyclesTimes[usePump1 ? 0 : 1].hour() * 3600UL +
-                            PumpCyclesTimes[usePump1 ? 0 : 1].minute() * 60UL +
-                            PumpCyclesTimes[usePump1 ? 0 : 1].second();
+    uint32_t cycleSeconds = PumpCyclesTimes[usePump1 ? 0 : 1].hour * 3600UL +
+                            PumpCyclesTimes[usePump1 ? 0 : 1].minute * 60UL +
+                            PumpCyclesTimes[usePump1 ? 0 : 1].second;
 
     /** Check if it's time to switch pumps */
     if (elapsedSeconds >= cycleSeconds && cycleSeconds > 0) {
@@ -375,10 +478,10 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
             currentScreenMode = DisplayCfgRtc(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay, rtc_datetime);
             break;
         case SCREEN_CFG_PUMP1_CYCLE:
-            currentScreenMode = DisplayCfgPump1Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes[0], lcdDisplay);
+            currentScreenMode = DisplayCfgPump1Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes, lcdDisplay);
             break;
         case SCREEN_CFG_PUMP2_CYCLE:
-            currentScreenMode = DisplayCfgPump2Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes[1], lcdDisplay);
+            currentScreenMode = DisplayCfgPump2Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes, lcdDisplay);
             break;
 
         default:
@@ -389,9 +492,11 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
 
 void setup() {
     Serial.begin(9600);
-    LogSerialn("System starting...", true);
+    Wire.begin(); 
+    LogSerialn("Starting Water Pump Control System", true);
     lcdDisplay.init();
     rtc_datetime.begin();
+    LoadPumpCyclesFromEEPROM(PumpCyclesTimes);
 }
 
 void loop() {
