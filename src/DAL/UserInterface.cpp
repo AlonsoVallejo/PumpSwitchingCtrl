@@ -186,10 +186,10 @@ ScreenMode_t DisplayCfgControlTypes(bool pbOkState, bool pbEscState, bool pbUpSt
  * @param pbLeftState State of the LEFT push button.
  * @param pbRightState State of the RIGHT push button.
  * @param lcdDisplay Reference to the LCD display object.
- * @param rtc Reference to the RealTimeClock object.
+ * @param rtc_datetime Reference to the RealTimeClock object.
  * @return The next screen mode based on user input.
  */
-ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay, RealTimeClock &rtc) {
+ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay, RealTimeClock &rtc_datetime) {
     /** Static variables to hold editable date/time and cursor position */
     static uint8_t day = 1, month = 1, year = 24, hour = 0, minute = 0, second = 0;
     static uint8_t cursorIndex = 0; /* 0=day, 1=month, 2=year, 3=hour, 4=minute, 5=second */
@@ -198,7 +198,7 @@ ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool
 
     /** On first entry, load values from RTC */
     if (!initialized) {
-        DateTime now = rtc.GetCurrentDateTime();
+        DateTime now = rtc_datetime.GetCurrentDateTime();
         day = now.day();
         month = now.month();
         year = now.year() % 100;
@@ -263,7 +263,7 @@ ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool
     if (pbOkState) {
         /** Save new date/time to RTC */
         DateTime newdt(2000 + year, month, day, hour, minute, second);
-        rtc.setDateTime(newdt);
+        rtc_datetime.setDateTime(newdt);
         initialized = false;
         retval = SCREEN_MAIN_CFGS;
     } else if (pbEscState) {
@@ -276,29 +276,154 @@ ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool
 }
 
 /**
- * @brief Displays the pump 1 cycle setting screen.
+ * @brief Displays the pump 1 cycle setting screen. Define the time that pump 1 will be in active state before switch to other pump.
  * @param pbOkState State of the OK push button.
  * @param pbEscState State of the ESC push button.
  * @param pbUpState State of the UP push button.
  * @param pbDownState State of the DOWN push button.
+ * @param pbLeftState State of the LEFT push button.
+ * @param pbRightState State of the RIGHT push button.
+ * @param pump1cycle The current cycle time for pump 1.
  * @param lcdDisplay Reference to the LCD display object.
  * @return The next screen mode based on user input.
  */
-ScreenMode_t DisplayCfgPump1Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay)
+ScreenMode_t DisplayCfgPump1Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, DateTime &pump1cycle, LCD_Display &lcdDisplay)
 {
-    return SCREEN_CFG_PUMP1_CYCLE;
+    /** Static variables to hold editable cycle time and cursor position */
+    static uint8_t hour = 0, minute = 0, second = 0;
+    static uint8_t cursorIndex = 0; /* 0=hour, 1=minute, 2=second */
+    static bool initialized = false;
+    ScreenMode_t retval = SCREEN_CFG_PUMP1_CYCLE;
+
+    /** On first entry, load values from pump1cycle */
+    if (!initialized) {
+        hour = pump1cycle.hour();
+        minute = pump1cycle.minute();
+        second = pump1cycle.second();
+        cursorIndex = 0;
+        initialized = true;
+    }
+
+    /** Handle navigation between fields */
+    if (pbLeftState && cursorIndex > 0) {
+        cursorIndex--;
+    }
+    if (pbRightState && cursorIndex < 2) {
+        cursorIndex++;
+    }
+
+    /** Handle value changes */
+    if (pbUpState) {
+        switch (cursorIndex) {
+            case 0: if (hour < 23) hour++; else hour = 0; break;
+            case 1: if (minute < 59) minute++; else minute = 0; break;
+            case 2: if (second < 59) second++; else second = 0; break;
+        }
+    }
+    if (pbDownState) {
+        switch (cursorIndex) {
+            case 0: if (hour > 0) hour--; else hour = 23; break;
+            case 1: if (minute > 0) minute--; else minute = 59; break;
+            case 2: if (second > 0) second--; else second = 59; break;
+        }
+    }
+
+    /** Format cycle time string: HH:MM:SS */
+    char cycleStr[9];
+    snprintf(cycleStr, sizeof(cycleStr), "%02u:%02u:%02u", hour, minute, second);
+    lcdDisplay.clearScreen();
+    lcdDisplay.PrintMessage(String(cycleStr), 0, 0);
+
+    /** Draw up arrow '^' under the selected field */
+    char arrowLine[9] = "       ";
+    uint8_t arrowPos = cursorIndex * 3; /* Each field is represented by two characters and a colon */
+    arrowLine[arrowPos] = '^';
+    lcdDisplay.PrintMessage(String(arrowLine), 0, 1);
+    /** Handle OK and ESC */
+    if (pbOkState) {
+        /** Save new cycle time to pump1cycle */
+        pump1cycle = DateTime(0, 0, 0, hour, minute, second);
+        initialized = false;
+        retval = SCREEN_MAIN_CFGS;
+    } else if (pbEscState) {
+        /** Discard changes */
+        initialized = false;
+        retval = SCREEN_MAIN_CFGS;
+    }
+
+    return retval;
 }
 
 /**
- * @brief Displays the pump 2 cycle setting screen.
+ * @brief Displays the pump 2 cycle setting screen. Define the time that pump 2 will be in active state before switch to other pump.
  * @param pbOkState State of the OK push button.
  * @param pbEscState State of the ESC push button.
  * @param pbUpState State of the UP push button.
  * @param pbDownState State of the DOWN push button.
+ * @param pbLeftState State of the LEFT push button.
+ * @param pbRightState State of the RIGHT push button.
+ * @param pump2cycle The current cycle time for pump 2.
  * @param lcdDisplay Reference to the LCD display object.
  * @return The next screen mode based on user input.
  */
-ScreenMode_t DisplayCfgPump2Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay)
+ScreenMode_t DisplayCfgPump2Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, DateTime &pump2cycle, LCD_Display &lcdDisplay)
 {
-    return SCREEN_CFG_PUMP2_CYCLE;
+    /** Static variables to hold editable cycle time and cursor position */
+    static uint8_t hour = 0, minute = 0, second = 0;
+    static uint8_t cursorIndex = 0; /* 0=hour, 1=minute, 2=second */
+    static bool initialized = false;
+    ScreenMode_t retval = SCREEN_CFG_PUMP2_CYCLE;
+    /** On first entry, load values from pump2cycle */
+    if (!initialized) {
+        hour = pump2cycle.hour();
+        minute = pump2cycle.minute();
+        second = pump2cycle.second();
+        cursorIndex = 0;
+        initialized = true;
+    }
+    /** Handle navigation between fields */
+    if (pbLeftState && cursorIndex > 0) {
+        cursorIndex--;
+    }
+    if (pbRightState && cursorIndex < 2) {
+        cursorIndex++;
+    }
+    /** Handle value changes */
+    if (pbUpState) {
+        switch (cursorIndex) {
+            case 0: if (hour < 23) hour++; else hour = 0; break;
+            case 1: if (minute < 59) minute++; else minute = 0; break;
+            case 2: if (second < 59) second++; else second = 0; break;
+        }
+    }
+    if (pbDownState) {
+        switch (cursorIndex) {
+            case 0: if (hour > 0) hour--; else hour = 23; break;
+            case 1: if (minute > 0) minute--; else minute = 59; break;
+            case 2: if (second > 0) second--; else second = 59; break;
+        }
+    }
+    /** Format cycle time string: HH:MM:SS */
+    char cycleStr[9];
+    snprintf(cycleStr, sizeof(cycleStr), "%02u:%02u:%02u", hour, minute, second);
+    lcdDisplay.clearScreen();
+    lcdDisplay.PrintMessage(String(cycleStr), 0, 0);
+    /** Draw up arrow '^' under the selected field */
+    char arrowLine[9] = "       ";
+    uint8_t arrowPos = cursorIndex * 3; /* Each field is represented by two characters and a colon */
+    arrowLine[arrowPos] = '^';
+    lcdDisplay.PrintMessage(String(arrowLine), 0, 1);
+    /** Handle OK and ESC */
+    if (pbOkState) {
+        /** Save new cycle time to pump2cycle */
+        pump2cycle = DateTime(0, 0, 0, hour, minute, second);
+        initialized = false;
+        retval = SCREEN_MAIN_CFGS;
+    } else if (pbEscState) {
+        /** Discard changes */
+        initialized = false;
+        retval = SCREEN_MAIN_CFGS;
+    }
+    /** Return the next screen mode */
+    return retval;
 }

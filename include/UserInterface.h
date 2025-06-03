@@ -30,7 +30,7 @@ enum ScreenMode_t {
 ScreenMode_t DisplayMain(bool pbOkState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay, String Hour);
 ScreenMode_t DisplayMainCfgs(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, LCD_Display &lcdDisplay);
 ScreenMode_t DisplayCfgControlTypes(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay);
-ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay, RealTimeClock &rtc);
-ScreenMode_t DisplayCfgPump1Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
-ScreenMode_t DisplayCfgPump2Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay);
+ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, LCD_Display &lcdDisplay, RealTimeClock &rtc_datetime);
+ScreenMode_t DisplayCfgPump1Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, DateTime &pump1cycle, LCD_Display &lcdDisplay);
+ScreenMode_t DisplayCfgPump2Cycle(bool pbOkState, bool pbEscState, bool pbUpState, bool pbDownState, bool pbLeftState, bool pbRightState, DateTime &pump2cycle, LCD_Display &lcdDisplay);
 #endif

@@ -24,6 +24,12 @@
 #define SENSOR_FULL_LEVEL  (false)
 #define SENSOR_EMPTY_LEVEL (true)
 
+/* Times in that each pump will be in active state */
+DateTime PumpCyclesTimes[] = {
+    DateTime(0, 0, 0, 0, 0, 0), /* Pump 1 cycle time (default) */
+    DateTime(0, 0, 0, 0, 0, 0)  /* Pump 2 cycle time (default) */
+};
+
 DigitalSensor pbUp(DI_PB_UP);
 DigitalSensor pbDown(DI_PB_DOWN);
 DigitalSensor pbLeft(DI_PB_LEFT);
@@ -42,7 +48,7 @@ DigitalActuator pump2(DO_PUMP_2);
 
 LCD_Display lcdDisplay(LCD_DISPLAY_I2C_ADDR, LCD_DISPLAY_COLS, LCD_DISPLAY_ROWS);
 
-RealTimeClock rtc;
+RealTimeClock rtc_datetime;
 /**
  * @brief Polls all sensors to update their states.
  * This function reads the state of each sensor and updates their internal state.
@@ -225,6 +231,120 @@ void CntrlPumpsBySensors(void)
 }
 
 /**
+ * @brief Controls the pumps based on a timer. This function manages the operation of pumps based on their timer configured values.
+ * It alternates between two pumps when filling the cistern and pauses operation if the well is empty.
+ * The alternating pump cycle times are defined in the PumpCyclesTimes array compared with the current time.
+ * The pumps will be active for the defined cycle time and then switch to the other pump.
+ * If the well is empty, both pumps will be deactivated.
+ */
+void CntrlPumpsByTimer(void)
+{
+    static bool usePump1 = true;
+    static DateTime lastSwitchDateTime = DateTime(0, 0, 0, 0, 0, 0);
+    static bool pumpPausedByWell = false;
+    static bool waitingForFull = false;
+    static bool lastCisternWasFull = true;
+
+    bool wellSensorState = wellSensor.isSensorActive();
+    bool cisternSensorState = cisternSensor.isSensorActive();
+
+    /** Get current date and time from RTC */
+    DateTime now = rtc_datetime.GetCurrentDateTime();
+
+    /** Check if both pump cycle times are set (not default) */
+    bool pump1CycleValid = (PumpCyclesTimes[0].hour() != 0) || (PumpCyclesTimes[0].minute() != 0) || (PumpCyclesTimes[0].second() != 0);
+    bool pump2CycleValid = (PumpCyclesTimes[1].hour() != 0) || (PumpCyclesTimes[1].minute() != 0) || (PumpCyclesTimes[1].second() != 0);
+
+    /** If either pump cycle time is default, do not start alternation, keep both pumps off and reset state */
+    if (!pump1CycleValid || !pump2CycleValid) {
+        pump1.deactivate();
+        pump2.deactivate();
+        waitingForFull = false;
+        lastCisternWasFull = true;
+        pumpPausedByWell = false;
+        return;
+    }
+
+    /** Start cycling when cistern becomes empty */
+    if ((cisternSensorState == SENSOR_EMPTY_LEVEL) && lastCisternWasFull) {
+        waitingForFull = true;
+        lastCisternWasFull = false;
+        pumpPausedByWell = false;
+        lastSwitchDateTime = now;
+        /** Activate the selected pump */
+        if (usePump1) {
+            pump1.activate();
+            pump2.deactivate();
+        } else {
+            pump1.deactivate();
+            pump2.activate();
+        }
+    }
+
+    /** Stop cycling when cistern becomes full */
+    if (waitingForFull && (cisternSensorState == SENSOR_FULL_LEVEL)) {
+        pump1.deactivate();
+        pump2.deactivate();
+        waitingForFull = false;
+        lastCisternWasFull = true;
+        pumpPausedByWell = false;
+        return;
+    }
+
+    /** Pause pumps if well is empty */
+    if (waitingForFull && (wellSensorState == SENSOR_EMPTY_LEVEL)) {
+        pump1.deactivate();
+        pump2.deactivate();
+        pumpPausedByWell = true;
+        return;
+    }
+
+    /** Resume pumps if well becomes full again */
+    if (waitingForFull && pumpPausedByWell && (wellSensorState == SENSOR_FULL_LEVEL)) {
+        lastSwitchDateTime = now; /** Reset timer to avoid immediate switch */
+        pumpPausedByWell = false;
+        /** Reactivate the current pump */
+        if (usePump1) {
+            pump1.activate();
+            pump2.deactivate();
+        } else {
+            pump1.deactivate();
+            pump2.activate();
+        }
+    }
+
+    /** If not in a cycle, keep both pumps off */
+    if (!waitingForFull) {
+        pump1.deactivate();
+        pump2.deactivate();
+        return;
+    }
+
+    /** Calculate elapsed seconds since last switch */
+    TimeSpan elapsed = now - lastSwitchDateTime;
+    uint32_t elapsedSeconds = elapsed.totalseconds();
+
+    /** Get configured cycle time for the current pump in seconds */
+    uint32_t cycleSeconds = PumpCyclesTimes[usePump1 ? 0 : 1].hour() * 3600UL +
+                            PumpCyclesTimes[usePump1 ? 0 : 1].minute() * 60UL +
+                            PumpCyclesTimes[usePump1 ? 0 : 1].second();
+
+    /** Check if it's time to switch pumps */
+    if (elapsedSeconds >= cycleSeconds && cycleSeconds > 0) {
+        usePump1 = !usePump1;  /** Alternate the pump */
+        lastSwitchDateTime = now;
+        /** Activate the new selected pump */
+        if (usePump1) {
+            pump1.activate();
+            pump2.deactivate();
+        } else {
+            pump1.deactivate();
+            pump2.activate();
+        }
+    }
+}
+
+/**
  * @brief Displays the current screen based on the selected mode.
  * This function manages the display of different screens based on user input and the current control mode.
  * It handles the main screen, option settings, control mode selection, date/time settings, and pump cycle settings.
@@ -243,7 +363,7 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
 
     switch(currentScreenMode) {
         case SCREEN_MAIN:
-            currentScreenMode = DisplayMain(pbOkState, currCtrlMode, lcdDisplay, rtc.getFormattedDateTime());
+            currentScreenMode = DisplayMain(pbOkState, currCtrlMode, lcdDisplay, rtc_datetime.getFormattedDateTime());
             break;
         case SCREEN_MAIN_CFGS:
             currentScreenMode = DisplayMainCfgs(pbOkState, pbEscState, pbUpState, pbDownState, lcdDisplay);
@@ -252,13 +372,13 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
             currentScreenMode = DisplayCfgControlTypes(pbOkState, pbEscState, pbUpState, pbDownState, currCtrlMode, lcdDisplay);
             break;
         case SCREEN_CFG_RTC:
-            currentScreenMode = DisplayCfgRtc(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay, rtc);
+            currentScreenMode = DisplayCfgRtc(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay, rtc_datetime);
             break;
         case SCREEN_CFG_PUMP1_CYCLE:
-            currentScreenMode = DisplayCfgPump1Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
+            currentScreenMode = DisplayCfgPump1Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes[0], lcdDisplay);
             break;
         case SCREEN_CFG_PUMP2_CYCLE:
-            currentScreenMode = DisplayCfgPump2Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, lcdDisplay);
+            currentScreenMode = DisplayCfgPump2Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes[1], lcdDisplay);
             break;
 
         default:
@@ -271,7 +391,7 @@ void setup() {
     Serial.begin(9600);
     LogSerialn("System starting...", true);
     lcdDisplay.init();
-    rtc.begin();
+    rtc_datetime.begin();
 }
 
 void loop() {
@@ -294,9 +414,9 @@ void loop() {
         } else if(currentCtrlMode == CTRL_AUTO_BY_SENSORS) {
             CntrlPumpsBySensors();
         } else if(currentCtrlMode == CTRL_AUTO_BY_TIMER) {
-
+            CntrlPumpsByTimer();
         } else {
-
+            currentCtrlMode = CTRL_AUTO_BY_SENSORS;
         }
 
         lastActuatorsMillis = now;
