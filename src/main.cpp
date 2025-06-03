@@ -414,6 +414,8 @@ void CntrlPumpsByTimer(void)
  */
 void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
     static ScreenMode_t currentScreenMode = SCREEN_MAIN;
+    static ScreenMode_t lastScreenMode = SCREEN_MAIN;
+
     bool pbUpState = pbUp.isSensorActive();
     bool pbDownState = pbDown.isSensorActive();
     bool pbLeftState = pbLeft.isSensorActive();
@@ -421,7 +423,11 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
     bool pbOkState = pbOk.isSensorActive();
     bool pbEscState = pbEsc.isSensorActive();
 
-    lcdDisplay.clearScreen();
+    /* Clear LCD only when changing screens */ 
+    if (currentScreenMode != lastScreenMode) {
+        lcdDisplay.clearScreen();
+        lastScreenMode = currentScreenMode;
+    }
 
     switch(currentScreenMode) {
         case SCREEN_MAIN:
@@ -442,7 +448,6 @@ void ShowDisplayMenus(CtrlModeSel_t &currCtrlMode) {
         case SCREEN_CFG_PUMP2_CYCLE:
             currentScreenMode = DisplayCfgPump2Cycle(pbOkState, pbEscState, pbUpState, pbDownState, pbLeftState, pbRightState, PumpCyclesTimes, lcdDisplay);
             break;
-
         default:
             currentScreenMode = SCREEN_MAIN;
             break;

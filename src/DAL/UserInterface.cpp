@@ -242,7 +242,6 @@ ScreenMode_t DisplayCfgRtc(bool pbOkState, bool pbEscState, bool pbUpState, bool
     /** Format date string: DD/MM/YY-HH:MM:SS */
     char dateStr[17];
     snprintf(dateStr, sizeof(dateStr), "%02u/%02u/%02u-%02u:%02u:%02u", day, month, year, hour, minute, second);
-    lcdDisplay.clearScreen();
     lcdDisplay.PrintMessage(String(dateStr), 0, 0);
 
     /** Draw up arrow '^' under the selected field */
@@ -326,7 +325,6 @@ ScreenMode_t DisplayCfgPump1Cycle(
 
     char cycleStr[9];
     snprintf(cycleStr, sizeof(cycleStr), "%02u:%02u:%02u", hour, minute, second);
-    lcdDisplay.clearScreen();
     lcdDisplay.PrintMessage(String(cycleStr), 0, 0);
 
     char arrowLine[9] = "       ";
@@ -399,7 +397,6 @@ ScreenMode_t DisplayCfgPump2Cycle(
 
     char cycleStr[9];
     snprintf(cycleStr, sizeof(cycleStr), "%02u:%02u:%02u", hour, minute, second);
-    lcdDisplay.clearScreen();
     lcdDisplay.PrintMessage(String(cycleStr), 0, 0);
 
     char arrowLine[9] = "       ";
