@@ -39,10 +39,12 @@ void RealTimeClock::setDateTime(const DateTime &dt) {
 }
 /**
  * @brief Gets the current date and time formatted as a string.
- * @return A string in the format "DD/MM/YY-HH:MM:SS".
+ * @return A string in the format "DD/MM HH:MM:SS".
  */
 String RealTimeClock::getFormattedDateTime() {
     DateTime now = GetCurrentDateTime();
-    return String(now.day()) + "/" + String(now.month()) + "/" + String(now.year() % 100) + "-" +
-           String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second());
+    char buf[18];
+    snprintf(buf, sizeof(buf), "%02d/%02d %02d:%02d:%02d",
+             now.day(), now.month(), now.hour(), now.minute(), now.second());
+    return String(buf);
 }

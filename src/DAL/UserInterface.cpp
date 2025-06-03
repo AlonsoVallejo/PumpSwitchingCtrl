@@ -5,7 +5,7 @@
  * @param pbOkState State of the OK push button (not used here, but kept for interface compatibility).
  * @param mode The current control mode to display.
  * @param lcdDisplay Reference to the LCD display object.
- * @param Hour String with the current hour in "HH:MM:SS" 24-hour format.
+ * @param Hour String with the current hour in "DD/MM HH:MM:SS" 24-hour format.
  * @return SCREEN_MAIN (remains on main screen).
  */
 ScreenMode_t DisplayMain(bool pbOkState, CtrlModeSel_t &mode, LCD_Display &lcdDisplay, String Hour)

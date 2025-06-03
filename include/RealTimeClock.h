@@ -13,7 +13,7 @@ public:
     void begin();
     DateTime GetCurrentDateTime();
     void setDateTime(const DateTime &dt);
-    String getFormattedDateTime(); /* DD/MM/YY-HH:MM:SS */
+    String getFormattedDateTime();
 };
 
 #endif
