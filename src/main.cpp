@@ -182,6 +182,7 @@ void CntrlPumpsByManual(void)
     static ManualPumpSel_t currentPumpSel = SELECT_PUMP_NONE;
     bool currPbPumpSelState = pbPumpSel.isSensorActive();
     bool wellSensorState = wellSensor.isSensorActive();
+    bool cisternSensorState = cisternSensor.isSensorActive();
 
     if(wellSensorState == SENSOR_EMPTY_LEVEL) {
         pump1.deactivate();
@@ -189,6 +190,12 @@ void CntrlPumpsByManual(void)
         return;  /** If well is empty, deactivate both pumps */
     }
 
+    if(cisternSensorState == SENSOR_FULL_LEVEL) {
+        pump1.deactivate();
+        pump2.deactivate();
+        return;  /** If cistern is full, deactivate both pumps */
+    }
+    
     /** Only allow manual pump selection if mode is not AUTO */
     if (prevPbPumpSelState && !currPbPumpSelState) {
         currentPumpSel = static_cast<ManualPumpSel_t>(static_cast<int>(currentPumpSel) + 1);
