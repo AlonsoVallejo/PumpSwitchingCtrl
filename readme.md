@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pump Alternator Controller is an embedded project running on MCU ATMEGA328P (Arduino Nano) designed to manage two pumps for filling a cistern from a well. The system alternates between pumps each time the cistern is emptied and refilled, ensuring balanced usage and protection against dry running. The project features a user interface with a 16x2 I2C LCD and push buttons for mode selection, pump selection, and configuration. All configuration data (pump cycle times) is stored in an external AT24C32 I2C EEPROM for persistence.
+Pump Alternator Controller is an embedded project running on MCU ATMEGA328P designed to manage two pumps for filling a cistern from a well. The system alternates between pumps each time the cistern is emptied and refilled, ensuring balanced usage and protection against dry running. The project features a user interface with a I2C LCD and push buttons for mode selection, pump selection, and configuration. All configuration data  is stored in an external EEPROM for persistence.
 
 ## Features
 
@@ -20,7 +20,7 @@ Pump Alternator Controller is an embedded project running on MCU ATMEGA328P (Ard
 
 ## Hardware Requirements
 
-- Arduino Nano (ATMEGA328P)
+- ATMEGA328P
 - 16x2 I2C LCD display 
 - RTC I2C module DS3231
 - AT24C32 I2C EEPROM module
